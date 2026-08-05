@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Check — Smith Ideas</title>
+<meta name="description" content="Six questions, checked against a fixed framework, the same for everyone.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site-header">
+    <div class="brand">
+      <a href="index.html" style="display:flex; align-items:center; gap:10px;">
+        <img src="assets/logo.png" alt="Smith Ideas" class="brand-mark">
+        <span class="brand-name">Smith Ideas</span>
+      </a>
+    </div>
+    <nav class="site-nav">
+      <ul>
+        <li><a href="about.html">About</a></li>
+      </ul>
+    </nav>
+  </header>
+  <hr class="site-hr">
+
+  <!-- QUIZ VIEW -->
+  <div id="quizView">
+    <div class="quiz-meta">
+      <span>The Check</span>
+      <span id="quizPos">1 / 6</span>
+    </div>
+    <div class="progress-track" id="progressTrack"></div>
+
+    <div class="q-category" id="qCategory"></div>
+    <h2 class="q-prompt" id="qPrompt"></h2>
+    <div class="opt-list" id="optList"></div>
+
+    <div class="quiz-nav">
+      <button class="link-btn" id="backBtn">Back</button>
+      <button class="btn" id="nextBtn" disabled>Next</button>
+    </div>
+  </div>
+
+  <!-- RESULTS VIEW -->
+  <div id="resultsView" style="display:none;">
+    <div class="eyebrow">Idea Check</div>
+    <h1 id="resultsHeadline">Here's where your plan is weak</h1>
+
+    <div class="cat-grid" id="catGrid"></div>
+
+    <div class="risk-box">
+      <div class="risk-eyebrow">Biggest risk</div>
+      <div class="risk-text" id="riskText"></div>
+    </div>
+
+    <div id="notesSection" style="display:none;">
+      <div class="notes-title">What to look at</div>
+      <div id="notesList"></div>
+    </div>
+
+    <div class="upsell-box" id="domainBox">
+      <h2>Every good idea eventually needs a good name.</h2>
+      <p>Find one that's actually available before you get too attached to a taken one.</p>
+      <!-- Generic Namecheap search — not tied to any specific name, just the affiliate entry point -->
+      <a class="btn" href="https://www.namecheap.com/domains/?aff_id=YOUR_NAMECHEAP_AFF_ID" target="_blank" rel="noopener">Search Namecheap</a>
+    </div>
+
+    <div style="text-align:center; margin-top:30px;">
+      <button class="link-btn" id="restartBtn">Run the check again</button>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <a href="about.html">About</a>
+    <span class="footer-dot">·</span>
+    <a href="policies.html">Policies</a>
+    <br>
+    ©2026 <a href="index.html">Smith Ideas</a>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  // ============================================================
+  // The fixed framework — ported directly from the real PrettyAwful
+  // source (lib/framework.ts). No AI, no randomness. Category labels,
+  // status labels, risk priority, and feedback text are all unchanged
+  // from the original — only PrettyAwful/Zotson-specific copy elsewhere
+  // on the page was reworded, never this data.
+  // ============================================================
+  const statusLabels = {
+    customer: { green: "Clear", yellow: "Could be stronger", red: "Too broad" },
+    problem: { green: "Painful enough", yellow: "Could be stronger", red: "Weak" },
+    competition: { green: "Existing alternatives found", yellow: "Worth confirming", red: "Unknown" },
+    distribution: { green: "Makes sense", yellow: "Could be stronger", red: "Unclear" },
+    monetization: { green: "Makes sense", yellow: "Could be stronger", red: "Unclear" },
+    complexity: { green: "Buildable", yellow: "Uncertain", red: "Too ambitious" }
+  };
+
+  const riskPriority = ["distribution", "complexity", "problem", "customer", "monetization", "competition"];
+
+  const riskMessages = {
+    customer: "You haven't landed on a specific customer yet. Pick one group before anything else. Everything downstream gets easier once you do.",
+    problem: "The problem may not be painful enough. Before building, make sure people genuinely want it solved right now, not someday.",
+    competition: "You don't fully understand how people solve this today. Study the current workaround before you build a replacement.",
+    distribution: "You know what to build. You don't yet know how people will find it. Solve that before writing code.",
+    monetization: "You're not certain how this makes money. You don't need perfect pricing on day one, but you should know who eventually pays.",
+    complexity: "Your first version is probably too large. Shrinking scope almost always beats adding features early on."
+  };
+
+  const noRiskMessage = "No obvious blind spots stood out. That's rare. The next step isn't more planning, it's putting this in front of real customers.";
+
+  const questions = [
+    { id:"q1", category:"customer", categoryLabel:"Customer", prompt:"Who is your customer?",
+      options:[
+        { value:"everyone", label:"Everyone", status:"red", feedback:"Products built for everyone usually resonate with no one. Start with one group." },
+        { value:"consumers", label:"Consumers", status:"yellow", feedback:'"Consumers" is broad. Narrowing to a specific type of person makes messaging and distribution far easier.' },
+        { value:"small-businesses", label:"Small businesses", status:"green" },
+        { value:"parents", label:"Parents", status:"green" },
+        { value:"developers", label:"Developers", status:"green" },
+        { value:"other", label:"Other", status:"green", isText:true }
+      ]},
+    { id:"q2", category:"problem", categoryLabel:"Problem", prompt:"How painful is the problem?",
+      options:[
+        { value:"mild", label:"Mild inconvenience", status:"red", feedback:"A mild inconvenience rarely pushes people to change behavior or pay. Make sure the pain is real." },
+        { value:"nice-to-have", label:"Nice to have", status:"yellow", feedback:"Nice-to-have products can succeed, but they often need stronger marketing because urgency is low." },
+        { value:"complain", label:"People complain about it", status:"green" },
+        { value:"costs-time", label:"It costs time", status:"green" },
+        { value:"costs-money", label:"It costs money", status:"green" },
+        { value:"blocks", label:"It stops people from doing something", status:"green" }
+      ]},
+    { id:"q3", category:"competition", categoryLabel:"Competition", prompt:"How do people solve this today?",
+      options:[
+        { value:"dont", label:"They don't", status:"yellow", feedback:"No current solution can mean an untapped market, or no market at all. If nobody solves it, confirm they actually want to." },
+        { value:"excel", label:"Excel", status:"green" },
+        { value:"pen-paper", label:"Pen and paper", status:"green" },
+        { value:"existing-software", label:"Existing software", status:"green" },
+        { value:"manual", label:"Manual process", status:"green" },
+        { value:"unknown", label:"I don't know", status:"red", feedback:"If you don't know how people cope today, you don't yet understand the problem. Go find the current workaround." }
+      ]},
+    { id:"q4", category:"distribution", categoryLabel:"Distribution", prompt:"How will people first discover your product?",
+      options:[
+        { value:"seo", label:"SEO", status:"green" },
+        { value:"ads", label:"Ads", status:"green" },
+        { value:"content", label:"Content", status:"green" },
+        { value:"cold-outreach", label:"Cold outreach", status:"green" },
+        { value:"communities", label:"Communities", status:"green" },
+        { value:"referrals", label:"Referrals", status:"yellow", feedback:"Referrals only work once you have happy users. You still need a way to reach the very first ones." },
+        { value:"unknown", label:"I don't know", status:"red", feedback:"The hardest part of a startup usually isn't building it. It's getting the first customers." }
+      ]},
+    { id:"q5", category:"monetization", categoryLabel:"Monetization", prompt:"How will you make money?",
+      options:[
+        { value:"subscription", label:"Subscription", status:"green" },
+        { value:"one-time", label:"One-time purchase", status:"green" },
+        { value:"services", label:"Services", status:"green" },
+        { value:"commission", label:"Commission", status:"green" },
+        { value:"ads", label:"Ads", status:"yellow", feedback:"Ad-based models usually need large scale before they earn much. Be sure you can reach it." },
+        { value:"unknown", label:"I don't know", status:"red", feedback:"You don't need perfect pricing on day one, but you should know who will eventually pay." }
+      ]},
+    { id:"q6", category:"complexity", categoryLabel:"Complexity", prompt:"Could you build a first version in under four weeks?",
+      options:[
+        { value:"yes", label:"Yes", status:"green" },
+        { value:"maybe", label:"Maybe", status:"yellow", feedback:"If you're unsure, the scope is probably fuzzy. Define the smallest version you could ship in weeks." },
+        { value:"no", label:"No", status:"red", feedback:"Your first version is probably too large. Shrinking scope usually beats adding features." }
+      ]}
+  ];
+
+  const statusRank = { red: 0, yellow: 1, green: 2 };
+
+  function computeResult(answers){
+    const raw = questions.map(q => {
+      const chosen = q.options.find(o => o.value === answers[q.id]);
+      const status = (chosen && chosen.status) || "yellow";
+      return { key: q.category, label: q.categoryLabel, status, feedback: chosen && chosen.feedback };
+    });
+
+    const worstRank = Math.min(...raw.map(r => statusRank[r.status]));
+    let biggestRiskKey = null;
+    if (worstRank < statusRank.green) {
+      for (const key of riskPriority) {
+        const match = raw.find(r => r.key === key && statusRank[r.status] === worstRank);
+        if (match) { biggestRiskKey = key; break; }
+      }
+    }
+
+    const categories = raw.map(r => {
+      const isBiggestRisk = r.key === biggestRiskKey;
+      const statusLabel = (isBiggestRisk && r.status !== "green") ? "Biggest weakness" : statusLabels[r.key][r.status];
+      return { key:r.key, label:r.label, status:r.status, statusLabel, feedback:r.feedback, isBiggestRisk };
+    });
+
+    return {
+      categories,
+      biggestRiskKey,
+      biggestRiskMessage: biggestRiskKey ? riskMessages[biggestRiskKey] : noRiskMessage,
+      worstStatus: worstRank === 0 ? "red" : worstRank === 1 ? "yellow" : "green"
+    };
+  }
+
+  // ============================================================
+  // Quiz state + rendering
+  // ============================================================
+  let currentIndex = 0;
+  let answers = {};
+  let otherText = "";
+
+  function renderProgress(){
+    $('quizPos').textContent = (currentIndex + 1) + ' / ' + questions.length;
+    $('progressTrack').innerHTML = questions.map((_, i) =>
+      `<div class="progress-seg ${i <= currentIndex ? 'done' : ''}"></div>`
+    ).join('');
+  }
+
+  function renderQuestion(){
+    const q = questions[currentIndex];
+    $('qCategory').textContent = q.categoryLabel;
+    $('qPrompt').textContent = q.prompt;
+    renderProgress();
+
+    $('optList').innerHTML = q.options.map(opt => {
+      const selected = answers[q.id] === opt.value;
+      return `
+        <div>
+          <button type="button" class="opt-btn ${selected ? 'selected' : ''}" data-value="${opt.value}">
+            <span class="opt-dot"><span class="opt-dot-fill"></span></span>
+            ${opt.label}
+          </button>
+          ${opt.isText && selected ? `<input type="text" class="opt-text-input" id="otherInput" placeholder="Describe your customer" value="${otherText.replace(/"/g,'&quot;')}">` : ''}
+        </div>`;
+    }).join('');
+
+    $('optList').querySelectorAll('.opt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        answers[q.id] = btn.getAttribute('data-value');
+        renderQuestion();
+      });
+    });
+    const otherInput = $('otherInput');
+    if (otherInput) {
+      otherInput.focus();
+      otherInput.addEventListener('input', e => { otherText = e.target.value; updateNextState(); });
+    }
+
+    $('backBtn').style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
+    $('nextBtn').textContent = currentIndex === questions.length - 1 ? 'See results' : 'Next';
+    updateNextState();
+  }
+
+  function updateNextState(){
+    const q = questions[currentIndex];
+    const selectedOpt = q.options.find(o => o.value === answers[q.id]);
+    const canContinue = Boolean(selectedOpt) && (!selectedOpt.isText || otherText.trim().length > 0);
+    $('nextBtn').disabled = !canContinue;
+  }
+
+  $('backBtn').addEventListener('click', () => {
+    if (currentIndex > 0) { currentIndex--; renderQuestion(); }
+  });
+  $('nextBtn').addEventListener('click', () => {
+    if (currentIndex < questions.length - 1) { currentIndex++; renderQuestion(); }
+    else { showResults(); }
+  });
+
+  function showResults(){
+    const result = computeResult(answers);
+    $('quizView').style.display = 'none';
+    $('resultsView').style.display = 'block';
+
+    $('catGrid').innerHTML = result.categories.map(c => `
+      <div class="cat-row ${c.isBiggestRisk && c.status !== 'green' ? 'flagged' : ''}">
+        <span class="cat-row-label">${c.label}</span>
+        <span class="cat-row-status">
+          <span class="status-text">${c.statusLabel}</span>
+          <span class="status-dot ${c.status}"></span>
+        </span>
+      </div>`).join('');
+
+    $('riskText').textContent = result.biggestRiskMessage;
+
+    const notes = result.categories.filter(c => c.feedback);
+    if (notes.length) {
+      $('notesSection').style.display = 'block';
+      $('notesList').innerHTML = notes.map(c => `
+        <div class="note-card">
+          <div class="note-card-head"><span class="status-dot ${c.status}"></span> ${c.label}</div>
+          <p>${c.feedback}</p>
+        </div>`).join('');
+    } else {
+      $('notesSection').style.display = 'none';
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  $('restartBtn').addEventListener('click', () => {
+    currentIndex = 0; answers = {}; otherText = "";
+    $('resultsView').style.display = 'none';
+    $('quizView').style.display = 'block';
+    renderQuestion();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  renderQuestion();
+})();
+</script>
+</body>
+</html>
